@@ -1,0 +1,31 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <title>익명 코드 채팅</title>
+  <style>
+    body { font-family: sans-serif; padding: 20px; }
+    #chat { border: 1px solid #ccc; height: 300px; overflow-y: scroll; margin-bottom: 10px; padding: 5px; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+
+  <h2>코드 채팅방</h2>
+
+  <div id="setup">
+    <input type="text" id="nickname" placeholder="닉네임 입력" />
+    <input type="text" id="roomCode" placeholder="방 코드 입력" />
+    <button onclick="joinRoom()">입장하기</button>
+  </div>
+
+  <div id="chatRoom" class="hidden">
+    <div id="chat"></div>
+    <input type="text" id="message" placeholder="메시지 입력" />
+    <button onclick="sendMessage()">전송</button>
+  </div>
+
+  <script src="/socket.io/socket.io.js"></script>
+  <script src="script.js"></script>
+</body>
+</html>
