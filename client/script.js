@@ -29,3 +29,9 @@ function sendMessage() {
   socket.emit('chatMessage', { message: msg, roomCode });
   document.getElementById("message").value = "";
 }
+document.getElementById("message").addEventListener("keydown", function(event) {
+  if (event.key === "Enter") {
+    sendMessage();
+  }
+});
+
