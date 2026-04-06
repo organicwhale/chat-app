@@ -7,15 +7,79 @@ app.use(express.static(__dirname + "/../client"));
 
 const rooms = {};
 
+function ensureRoom(roomCode) {
+  if (!rooms[roomCode]) {
+    rooms[roomCode] = {
+      users: [],
+      maxCount: 0,
+      notice: "",
+      hostId: null
+    };
+  }
+}
+
 function getPublicRooms() {
-  return Object.entries(rooms).map(([code, users]) => ({
+  return Object.entries(rooms).map(([code, room]) => ({
     code,
-    count: users.length
+    count: room.users.length,
+    maxCount: room.maxCount
   }));
 }
 
 function broadcastRoomList() {
   io.emit("roomList", getPublicRooms());
+}
+
+function broadcastRoomUsers(roomCode) {
+  if (!rooms[roomCode]) return;
+  io.to(roomCode).emit("roomUsers", {
+    users: rooms[roomCode].users,
+    count: rooms[roomCode].users.length,
+    maxCount: rooms[roomCode].maxCount,
+    hostId: rooms[roomCode].hostId
+  });
+}
+
+function broadcastNotice(roomCode) {
+  if (!rooms[roomCode]) return;
+  io.to(roomCode).emit("noticeUpdated", {
+    notice: rooms[roomCode].notice,
+    hostId: rooms[roomCode].hostId
+  });
+}
+
+function leaveCurrentRoom(socket, isDisconnect = false) {
+  if (!socket.roomCode || !rooms[socket.roomCode]) return;
+
+  const oldRoomCode = socket.roomCode;
+  const oldRoom = rooms[oldRoomCode];
+  const oldNickname = socket.nickname;
+
+  socket.leave(oldRoomCode);
+
+  oldRoom.users = oldRoom.users.filter((user) => user.id !== socket.id);
+
+  if (oldRoom.users.length === 0) {
+    delete rooms[oldRoomCode];
+  } else {
+    if (oldRoom.hostId === socket.id) {
+      oldRoom.hostId = oldRoom.users[0].id;
+    }
+
+    io.to(oldRoomCode).emit("message", {
+      nickname: "시스템",
+      message: `${oldNickname} 퇴장`
+    });
+
+    broadcastRoomUsers(oldRoomCode);
+    broadcastNotice(oldRoomCode);
+  }
+
+  if (!isDisconnect) {
+    socket.roomCode = null;
+  }
+
+  broadcastRoomList();
 }
 
 io.on("connection", (socket) => {
@@ -26,46 +90,33 @@ io.on("connection", (socket) => {
   socket.on("join", ({ nickname, roomCode }) => {
     if (!nickname || !roomCode) return;
 
-    // 이미 다른 방에 있었다면 먼저 정리
     if (socket.roomCode) {
-      const oldRoom = socket.roomCode;
-      const oldNickname = socket.nickname;
-
-      socket.leave(oldRoom);
-
-      if (rooms[oldRoom]) {
-        rooms[oldRoom] = rooms[oldRoom].filter((user) => user.id !== socket.id);
-
-        if (rooms[oldRoom].length === 0) {
-          delete rooms[oldRoom];
-        } else {
-          io.to(oldRoom).emit("message", {
-            nickname: "시스템",
-            message: `${oldNickname} 퇴장`
-          });
-          io.to(oldRoom).emit("roomUsers", rooms[oldRoom]);
-        }
-      }
+      leaveCurrentRoom(socket);
     }
+
+    ensureRoom(roomCode);
 
     socket.nickname = nickname;
     socket.roomCode = roomCode;
 
     socket.join(roomCode);
 
-    // 새로 들어온 사람은 이전 대화 못 보게 강제 초기화
+    // 새로 들어온 사람은 이전 채팅을 보지 못하게
     socket.emit("clearChat");
 
-    if (!rooms[roomCode]) {
-      rooms[roomCode] = [];
+    const room = rooms[roomCode];
+
+    room.users.push({
+      id: socket.id,
+      nickname
+    });
+
+    if (!room.hostId) {
+      room.hostId = socket.id;
     }
 
-    const alreadyExists = rooms[roomCode].some((user) => user.id === socket.id);
-    if (!alreadyExists) {
-      rooms[roomCode].push({
-        id: socket.id,
-        nickname
-      });
+    if (room.users.length > room.maxCount) {
+      room.maxCount = room.users.length;
     }
 
     io.to(roomCode).emit("message", {
@@ -73,39 +124,29 @@ io.on("connection", (socket) => {
       message: `${nickname} 입장`
     });
 
-    io.to(roomCode).emit("roomUsers", rooms[roomCode]);
+    broadcastRoomUsers(roomCode);
+    broadcastNotice(roomCode);
     broadcastRoomList();
+  });
+
+  socket.on("updateNotice", ({ roomCode, notice }) => {
+    if (!roomCode || !rooms[roomCode]) return;
+
+    const room = rooms[roomCode];
+    if (room.hostId !== socket.id) return;
+
+    room.notice = notice || "";
+    broadcastNotice(roomCode);
   });
 
   socket.on("leaveRoom", () => {
     if (!socket.roomCode) return;
-
-    const oldRoom = socket.roomCode;
-    const oldNickname = socket.nickname;
-
-    socket.leave(oldRoom);
-
-    if (rooms[oldRoom]) {
-      rooms[oldRoom] = rooms[oldRoom].filter((user) => user.id !== socket.id);
-
-      if (rooms[oldRoom].length === 0) {
-        delete rooms[oldRoom];
-      } else {
-        io.to(oldRoom).emit("message", {
-          nickname: "시스템",
-          message: `${oldNickname} 퇴장`
-        });
-        io.to(oldRoom).emit("roomUsers", rooms[oldRoom]);
-      }
-    }
-
-    socket.roomCode = null;
-    broadcastRoomList();
+    leaveCurrentRoom(socket);
     socket.emit("leftRoom");
   });
 
   socket.on("chatMessage", ({ message, roomCode }) => {
-    if (!message || !roomCode) return;
+    if (!message || !roomCode || !rooms[roomCode]) return;
 
     io.to(roomCode).emit("message", {
       nickname: socket.nickname,
@@ -115,25 +156,7 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     if (!socket.roomCode) return;
-
-    const oldRoom = socket.roomCode;
-    const oldNickname = socket.nickname;
-
-    if (rooms[oldRoom]) {
-      rooms[oldRoom] = rooms[oldRoom].filter((user) => user.id !== socket.id);
-
-      if (rooms[oldRoom].length === 0) {
-        delete rooms[oldRoom];
-      } else {
-        io.to(oldRoom).emit("message", {
-          nickname: "시스템",
-          message: `${oldNickname} 퇴장`
-        });
-        io.to(oldRoom).emit("roomUsers", rooms[oldRoom]);
-      }
-    }
-
-    broadcastRoomList();
+    leaveCurrentRoom(socket, true);
   });
 });
 
