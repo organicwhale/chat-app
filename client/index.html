@@ -3,11 +3,69 @@
 <head>
   <meta charset="UTF-8" />
   <title>익명 코드 채팅</title>
-  <style>
-    body { font-family: sans-serif; padding: 20px; }
-    #chat { border: 1px solid #ccc; height: 500px; overflow-y: scroll; margin-bottom: 10px; padding: 5px; }
-    .hidden { display: none; }
-  </style>
+ <style>
+  body {
+    font-family: sans-serif;
+    padding: 20px;
+  }
+
+  #chat {
+    border: 1px solid #ccc;
+    height: 500px;
+    overflow-y: scroll;
+    margin-bottom: 10px;
+    padding: 10px;
+    background: #f9f9f9;
+  }
+
+  .message-row {
+    display: flex;
+    margin-bottom: 10px;
+  }
+
+  .message-row.me {
+    justify-content: flex-end;
+  }
+
+  .message-row.other {
+    justify-content: flex-start;
+  }
+
+  .message-bubble {
+    max-width: 70%;
+    padding: 10px 14px;
+    border-radius: 12px;
+    word-break: break-word;
+  }
+
+  .message-row.me .message-bubble {
+    background: #dbeafe;
+    text-align: right;
+  }
+
+  .message-row.other .message-bubble {
+    background: #e5e7eb;
+    text-align: left;
+  }
+
+  .system-message {
+    text-align: center;
+    color: #666;
+    font-size: 14px;
+    margin: 8px 0;
+  }
+
+  #message {
+    width: 85%;
+    padding: 12px;
+    font-size: 16px;
+    box-sizing: border-box;
+  }
+
+  .hidden {
+    display: none;
+  }
+</style>
 </head>
 <body>
 
