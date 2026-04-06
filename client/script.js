@@ -23,6 +23,42 @@ function escapeHtml(text) {
     .replaceAll("'", "&#039;");
 }
 
+function getNicknameColor(name) {
+  const colors = [
+    "#9cdcfe",
+    "#ce9178",
+    "#dcdcaa",
+    "#4ec9b0",
+    "#c586c0",
+    "#f44747",
+    "#b5cea8",
+    "#569cd6",
+    "#ffd700",
+    "#ff9da4"
+  ];
+
+  let hash = 0;
+  for (let i = 0; i < name.length; i++) {
+    hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  }
+
+  return colors[Math.abs(hash) % colors.length];
+}
+
+function formatNickname(name) {
+  const color = getNicknameColor(name);
+  return `<span style="color:${color}; font-weight:600;">${escapeHtml(name)}</span>`;
+}
+
+function scrollChatToBottom() {
+  const chat = document.getElementById("chat");
+  if (!chat) return;
+
+  requestAnimationFrame(() => {
+    chat.scrollTop = chat.scrollHeight;
+  });
+}
+
 function renderRoomList(rooms) {
   const container = document.getElementById("roomsContainer");
 
@@ -119,6 +155,8 @@ function joinRoom() {
     roomName,
     roomCode
   });
+
+  scrollChatToBottom();
 }
 
 function leaveRoom() {
@@ -132,6 +170,7 @@ function sendMessage() {
 
   socket.emit("chatMessage", { message: msg });
   msgInput.value = "";
+  scrollChatToBottom();
 }
 
 socket.on("connect", () => {
@@ -148,6 +187,7 @@ socket.on("joinError", (message) => {
 
 socket.on("clearChat", () => {
   document.getElementById("chat").innerHTML = "";
+  scrollChatToBottom();
 });
 
 socket.on("message", (data) => {
@@ -157,16 +197,18 @@ socket.on("message", (data) => {
     chat.innerHTML += `<div class="system">${escapeHtml(data.message)}</div>`;
   } else {
     const cls = data.nickname === nickname ? "me" : "other";
+    const nicknameHtml = formatNickname(data.nickname);
+
     chat.innerHTML += `
       <div class="log-row ${cls}">
-        ${escapeHtml(data.nickname)}
+        ${nicknameHtml}
         <span class="time">${getTime()}</span> :
         ${escapeHtml(data.message)}
       </div>
     `;
   }
 
-  chat.scrollTop = chat.scrollHeight;
+  scrollChatToBottom();
 });
 
 socket.on("roomList", (rooms) => {
@@ -182,6 +224,8 @@ socket.on("roomUsers", (payload) => {
 
   currentHostId = payload.hostId;
   setNoticeEditable(currentHostId === mySocketId);
+
+  scrollChatToBottom();
 });
 
 socket.on("noticeUpdated", ({ notice, hostId }) => {
@@ -238,6 +282,10 @@ document.addEventListener("DOMContentLoaded", () => {
       }
     });
   }
+
+  window.addEventListener("resize", () => {
+    scrollChatToBottom();
+  });
 
   socket.emit("getRoomList");
 });
