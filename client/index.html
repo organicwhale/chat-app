@@ -2,109 +2,108 @@
 <html lang="ko">
 <head>
   <meta charset="UTF-8" />
-  <title>익명 코드 채팅</title>
- <style>
-  body {
-    font-family: sans-serif;
-    padding: 20px;
-    background: #121212;
-    color: #e0e0e0;
-  }
+  <title>실시간 메모</title>
 
-  h2 {
-    color: #e0e0e0;
-  }
+  <style>
+    body {
+      font-family: sans-serif;
+      padding: 20px;
+      background: #121212;
+      color: #e0e0e0;
+    }
 
-  #chat {
-    border: 1px solid #333;
-    height: 500px;
-    overflow-y: scroll;
-    margin-bottom: 10px;
-    padding: 10px;
-    background: #1e1e1e;
-  }
+    h2 {
+      margin-bottom: 10px;
+      font-size: 18px;
+      color: #e0e0e0;
+    }
 
-  .message-row {
-    margin-bottom: 10px;
-    padding-bottom: 8px;
-    border-bottom: 1px solid #2a2a2a;
-  }
+    #chat {
+      border: 1px solid #333;
+      height: 500px;
+      overflow-y: scroll;
+      margin-bottom: 10px;
+      padding: 10px;
+      background: #1e1e1e;
+      font-size: 14px;
+    }
 
-  .message-row.me {
-    text-align: right;
-  }
+    .log-row {
+      margin-bottom: 6px;
+      border-bottom: 1px solid #2a2a2a;
+      padding-bottom: 4px;
+    }
 
-  .message-row.other {
-    text-align: left;
-  }
+    .me {
+      color: #9cdcfe;
+    }
 
-  .message-bubble {
-    display: inline-block;
-    max-width: 70%;
-  }
+    .other {
+      color: #d4d4d4;
+    }
 
-  .message-row.me .message-bubble {
-    color: #9cdcfe;
-  }
+    .time {
+      color: #777;
+      font-size: 12px;
+      margin-left: 5px;
+    }
 
-  .message-row.other .message-bubble {
-    color: #d4d4d4;
-  }
+    .system {
+      text-align: center;
+      color: #666;
+      font-size: 12px;
+      margin: 5px 0;
+    }
 
-  .system-message {
-    text-align: center;
-    color: #777;
-    font-size: 13px;
-    margin: 8px 0;
-  }
+    input {
+      background: #1e1e1e;
+      border: 1px solid #333;
+      color: #e0e0e0;
+      padding: 10px;
+      font-size: 14px;
+    }
 
-  input {
-    background: #1e1e1e;
-    border: 1px solid #333;
-    color: #e0e0e0;
-  }
+    #message {
+      width: 80%;
+    }
 
-  #message {
-    width: 85%;
-    padding: 12px;
-    font-size: 15px;
-    box-sizing: border-box;
-  }
+    button {
+      background: #2a2a2a;
+      border: 1px solid #444;
+      color: #e0e0e0;
+      padding: 10px;
+      cursor: pointer;
+    }
 
-  button {
-    background: #2a2a2a;
-    border: 1px solid #444;
-    color: #e0e0e0;
-    padding: 10px 14px;
-    cursor: pointer;
-  }
+    button:hover {
+      background: #3a3a3a;
+    }
 
-  button:hover {
-    background: #3a3a3a;
-  }
-
-  .hidden {
-    display: none;
-  }
-</style>
+    .hidden {
+      display: none;
+    }
+  </style>
 </head>
+
 <body>
 
-  <h2>코드 채팅방</h2>
+  <h2>실시간 메모</h2>
 
   <div id="setup">
-    <input type="text" id="nickname" placeholder="닉네임 입력" />
-    <input type="text" id="roomCode" placeholder="방 코드 입력" />
-    <button onclick="joinRoom()">입장하기</button>
+    <input type="text" id="nickname" placeholder="이름 입력" />
+    <input type="text" id="roomCode" placeholder="코드 입력" />
+    <button onclick="joinRoom()">입장</button>
   </div>
 
   <div id="chatRoom" class="hidden">
     <div id="chat"></div>
-    <input type="text" id="message" placeholder="메시지 입력" />
-    <button onclick="sendMessage()">전송</button>
+
+    <input type="text" id="message" placeholder="내용 입력" />
+    <button onclick="sendMessage()">등록</button>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
   <script src="script.js"></script>
+
 </body>
 </html>
