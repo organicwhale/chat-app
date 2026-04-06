@@ -1,5 +1,6 @@
 let socket = io();
 let nickname = "";
+let roomName = "";
 let roomCode = "";
 let currentHostId = null;
 let mySocketId = null;
@@ -11,6 +12,15 @@ function getTime() {
   const h = String(now.getHours()).padStart(2, "0");
   const m = String(now.getMinutes()).padStart(2, "0");
   return `${h}:${m}`;
+}
+
+function escapeHtml(text) {
+  return String(text)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#039;");
 }
 
 function renderRoomList(rooms) {
@@ -26,56 +36,19 @@ function renderRoomList(rooms) {
       (room) => `
         <div class="room-item">
           <div>
-            <div class="room-name">${room.code} (${room.count}/${room.maxCount})</div>
+            <div class="room-name">${escapeHtml(room.roomName)} (${room.count}/${room.maxCount})</div>
             <div class="room-meta">현재 ${room.count}명 / 최대 ${room.maxCount}명</div>
           </div>
-          <button onclick="joinSelectedRoom('${escapeHtml(room.code)}')">입장</button>
+          <button onclick="fillRoomName('${escapeHtml(room.roomName)}')">선택</button>
         </div>
       `
     )
     .join("");
 }
 
-function joinSelectedRoom(selectedCode) {
-  document.getElementById("roomCode").value = selectedCode;
-  joinRoom();
-}
-
-function joinRoom() {
-  const nicknameInput = document.getElementById("nickname").value.trim();
-  const roomCodeInput = document.getElementById("roomCode").value.trim();
-
-  if (!nicknameInput || !roomCodeInput) {
-    alert("이름과 코드를 입력하세요.");
-    return;
-  }
-
-  nickname = nicknameInput;
-  roomCode = roomCodeInput;
-
-  clearPersonalMemos();
-  document.getElementById("chat").innerHTML = "";
-
-  document.getElementById("setup").classList.add("hidden");
-  document.getElementById("roomListWrap").classList.add("hidden");
-  document.getElementById("dashboard").classList.remove("hidden");
-  document.getElementById("currentRoomLabel").textContent = `방: ${roomCode}`;
-
-  socket.emit("join", { nickname, roomCode });
-}
-
-function leaveRoom() {
-  socket.emit("leaveRoom");
-}
-
-function sendMessage() {
-  const msgInput = document.getElementById("message");
-  const msg = msgInput.value.trim();
-
-  if (!msg) return;
-
-  socket.emit("chatMessage", { message: msg, roomCode });
-  msgInput.value = "";
+function fillRoomName(selectedRoomName) {
+  document.getElementById("roomNameInput").value = selectedRoomName;
+  document.getElementById("roomCodeInput").focus();
 }
 
 function clearPersonalMemos() {
@@ -92,7 +65,6 @@ function setNoticeEditable(isHost) {
 
   if (isHost) {
     noticeText.removeAttribute("readonly");
-    noticeText.placeholder = "공지 입력";
     noticeHint.textContent = "공지 수정 가능";
     hostBadge.textContent = "방장";
   } else {
@@ -111,24 +83,67 @@ function debounce(func, delay) {
 }
 
 const sendNoticeUpdate = debounce(() => {
-  if (!roomCode) return;
   if (currentHostId !== mySocketId) return;
-
-  const notice = document.getElementById("noticeText").value;
-  socket.emit("updateNotice", { roomCode, notice });
+  socket.emit("updateNotice", {
+    notice: document.getElementById("noticeText").value
+  });
 }, 300);
 
-function escapeHtml(text) {
-  return String(text)
-    .replaceAll("&", "&amp;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("'", "&#039;");
+function joinRoom() {
+  const nicknameInput = document.getElementById("nickname").value.trim();
+  const roomNameInput = document.getElementById("roomNameInput").value.trim();
+  const roomCodeInput = document.getElementById("roomCodeInput").value.trim();
+
+  if (!nicknameInput || !roomNameInput || !roomCodeInput) {
+    alert("이름, 방이름, 코드를 모두 입력하세요.");
+    return;
+  }
+
+  nickname = nicknameInput;
+  roomName = roomNameInput;
+  roomCode = roomCodeInput;
+
+  clearPersonalMemos();
+  document.getElementById("chat").innerHTML = "";
+  document.getElementById("noticeText").value = "";
+
+  document.getElementById("setup").classList.add("hidden");
+  document.getElementById("roomListWrap").classList.add("hidden");
+  document.getElementById("dashboard").classList.remove("hidden");
+
+  document.getElementById("currentRoomLabel").textContent = `방이름: ${roomName}`;
+  document.getElementById("myNicknameLabel").textContent = `이름: ${nickname}`;
+
+  socket.emit("join", {
+    nickname,
+    roomName,
+    roomCode
+  });
+}
+
+function leaveRoom() {
+  socket.emit("leaveRoom");
+}
+
+function sendMessage() {
+  const msgInput = document.getElementById("message");
+  const msg = msgInput.value.trim();
+  if (!msg) return;
+
+  socket.emit("chatMessage", { message: msg });
+  msgInput.value = "";
 }
 
 socket.on("connect", () => {
   mySocketId = socket.id;
+});
+
+socket.on("joinError", (message) => {
+  alert(message);
+
+  document.getElementById("dashboard").classList.add("hidden");
+  document.getElementById("setup").classList.remove("hidden");
+  document.getElementById("roomListWrap").classList.remove("hidden");
 });
 
 socket.on("clearChat", () => {
@@ -142,7 +157,6 @@ socket.on("message", (data) => {
     chat.innerHTML += `<div class="system">${escapeHtml(data.message)}</div>`;
   } else {
     const cls = data.nickname === nickname ? "me" : "other";
-
     chat.innerHTML += `
       <div class="log-row ${cls}">
         ${escapeHtml(data.nickname)}
@@ -163,14 +177,17 @@ socket.on("roomUsers", (payload) => {
   document.getElementById("userCount").textContent =
     `인원 ${payload.count}명 / 최대 ${payload.maxCount}명`;
 
+  document.getElementById("currentRoomLabel").textContent =
+    `방이름: ${payload.roomName}`;
+
   currentHostId = payload.hostId;
   setNoticeEditable(currentHostId === mySocketId);
 });
 
 socket.on("noticeUpdated", ({ notice, hostId }) => {
   currentHostId = hostId;
-
   const noticeText = document.getElementById("noticeText");
+
   if (noticeText !== document.activeElement || currentHostId !== mySocketId) {
     noticeText.value = notice || "";
   }
@@ -179,6 +196,7 @@ socket.on("noticeUpdated", ({ notice, hostId }) => {
 });
 
 socket.on("leftRoom", () => {
+  roomName = "";
   roomCode = "";
   currentHostId = null;
 
@@ -187,11 +205,15 @@ socket.on("leftRoom", () => {
   document.getElementById("roomListWrap").classList.remove("hidden");
 
   document.getElementById("chat").innerHTML = "";
-  document.getElementById("roomCode").value = "";
+  document.getElementById("roomNameInput").value = "";
+  document.getElementById("roomCodeInput").value = "";
   document.getElementById("message").value = "";
+  document.getElementById("noticeText").value = "";
   document.getElementById("userCount").textContent = "인원 0명";
   document.getElementById("hostBadge").textContent = "";
-  document.getElementById("noticeText").value = "";
+  document.getElementById("currentRoomLabel").textContent = "방이름:";
+  document.getElementById("myNicknameLabel").textContent = "이름:";
+
   clearPersonalMemos();
 
   socket.emit("getRoomList");

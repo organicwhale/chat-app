@@ -8,8 +8,13 @@
       box-sizing: border-box;
     }
 
-    body {
+    html, body {
+      height: 100%;
       margin: 0;
+      overflow: hidden;
+    }
+
+    body {
       font-family: sans-serif;
       background: #121212;
       color: #e0e0e0;
@@ -21,8 +26,12 @@
     }
 
     .app {
-      max-width: 1500px;
+      height: calc(100vh - 32px);
+      max-width: 1600px;
       margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
     }
 
     .card {
@@ -32,8 +41,9 @@
       padding: 12px;
     }
 
-    h2, h3 {
+    h3 {
       margin: 0 0 10px 0;
+      font-size: 15px;
       font-weight: 600;
     }
 
@@ -71,13 +81,12 @@
 
     #setup {
       display: grid;
-      grid-template-columns: 1fr 1fr auto;
+      grid-template-columns: 1fr 1fr 1fr auto;
       gap: 10px;
-      margin-bottom: 14px;
     }
 
     #roomListWrap {
-      margin-bottom: 14px;
+      overflow: auto;
     }
 
     #roomsContainer {
@@ -106,15 +115,17 @@
     }
 
     #dashboard {
+      flex: 1;
+      min-height: 0;
       display: grid;
-      grid-template-columns: 1fr 1fr 1.1fr;
+      grid-template-columns: 1fr 1fr 1.15fr;
       grid-template-rows: 1fr 1fr 1fr;
       gap: 12px;
-      min-height: 76vh;
+      overflow: hidden;
     }
 
     .panel {
-      min-height: 180px;
+      min-height: 0;
       display: flex;
       flex-direction: column;
     }
@@ -124,72 +135,56 @@
       color: #a8a8a8;
       margin-bottom: 8px;
       letter-spacing: 0.3px;
+      flex-shrink: 0;
     }
 
     .memo-box {
       flex: 1;
       min-height: 0;
+      display: flex;
+      flex-direction: column;
     }
 
     .memo-box textarea {
-      height: 100%;
-      min-height: 120px;
+      flex: 1;
+      min-height: 0;
     }
 
-    #noticePanel {
-      grid-column: 1;
-      grid-row: 1;
-    }
-
-    #memo8Panel {
-      grid-column: 2;
-      grid-row: 1;
-    }
-
-    #todoPanel {
-      grid-column: 1;
-      grid-row: 2;
-    }
-
-    #memo5Panel {
-      grid-column: 2;
-      grid-row: 2;
-    }
-
-    #memo1Panel {
-      grid-column: 1;
-      grid-row: 3;
-    }
-
-    #memo2Panel {
-      grid-column: 2;
-      grid-row: 3;
-    }
+    #noticePanel { grid-column: 1; grid-row: 1; }
+    #memo8Panel  { grid-column: 2; grid-row: 1; }
+    #todoPanel   { grid-column: 1; grid-row: 2; }
+    #memo5Panel  { grid-column: 2; grid-row: 2; }
+    #memo1Panel  { grid-column: 1; grid-row: 3; }
+    #memo2Panel  { grid-column: 2; grid-row: 3; }
 
     #chatPanel {
       grid-column: 3;
       grid-row: 1 / span 3;
+      min-height: 0;
       display: grid;
       grid-template-rows: auto 1fr auto;
-      min-height: 0;
+      overflow: hidden;
     }
 
     #chatTop {
       display: flex;
       justify-content: space-between;
-      align-items: center;
+      align-items: flex-start;
       gap: 10px;
       margin-bottom: 10px;
+      flex-shrink: 0;
     }
 
     #roomInfo {
       display: flex;
       flex-direction: column;
       gap: 4px;
+      min-width: 0;
     }
 
     #currentRoomLabel {
       font-weight: 700;
+      word-break: break-word;
     }
 
     #userCount {
@@ -206,6 +201,7 @@
       color: #777;
       font-size: 12px;
       margin-bottom: 8px;
+      flex-shrink: 0;
     }
 
     #chat {
@@ -250,6 +246,7 @@
       grid-template-columns: 1fr auto;
       gap: 10px;
       margin-top: 10px;
+      flex-shrink: 0;
     }
 
     #leaveBtn {
@@ -264,12 +261,21 @@
       margin-top: 8px;
       color: #666;
       font-size: 12px;
+      flex-shrink: 0;
     }
 
     @media (max-width: 980px) {
+      body {
+        overflow: auto;
+      }
+
+      .app {
+        height: auto;
+      }
+
       #dashboard {
-        grid-template-columns: 1fr;
-        grid-template-rows: auto;
+        display: block;
+        overflow: visible;
       }
 
       #noticePanel,
@@ -282,8 +288,8 @@
       }
 
       #chatPanel {
-        grid-column: 1;
-        grid-row: auto;
+        display: grid;
+        grid-template-rows: auto 1fr auto;
         min-height: 78vh;
       }
 
@@ -297,7 +303,8 @@
   <div class="app">
     <div id="setup" class="card">
       <input type="text" id="nickname" placeholder="이름 입력" />
-      <input type="text" id="roomCode" placeholder="코드 입력" />
+      <input type="text" id="roomNameInput" placeholder="방이름 입력" />
+      <input type="text" id="roomCodeInput" placeholder="코드 입력" />
       <button onclick="joinRoom()">입장</button>
     </div>
 
@@ -354,7 +361,8 @@
         <div>
           <div id="chatTop">
             <div id="roomInfo">
-              <div id="currentRoomLabel">방:</div>
+              <div id="currentRoomLabel">방이름:</div>
+              <div id="myNicknameLabel">이름:</div>
               <div id="userCount">인원 0명</div>
               <div id="hostBadge"></div>
             </div>
