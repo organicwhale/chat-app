@@ -7,82 +7,6 @@ app.use(express.static(__dirname + "/../client"));
 
 const rooms = {};
 
-function ensureRoom(roomCode) {
-  if (!rooms[roomCode]) {
-    rooms[roomCode] = {
-      users: [],
-      maxCount: 0,
-      notice: "",
-      hostId: null
-    };
-  }
-}
-
-function getPublicRooms() {
-  return Object.entries(rooms).map(([code, room]) => ({
-    code,
-    count: room.users.length,
-    maxCount: room.maxCount
-  }));
-}
-
-function broadcastRoomList() {
-  io.emit("roomList", getPublicRooms());
-}
-
-function broadcastRoomUsers(roomCode) {
-  if (!rooms[roomCode]) return;
-  io.to(roomCode).emit("roomUsers", {
-    users: rooms[roomCode].users,
-    count: rooms[roomCode].users.length,
-    maxCount: rooms[roomCode].maxCount,
-    hostId: rooms[roomCode].hostId
-  });
-}
-
-function broadcastNotice(roomCode) {
-  if (!rooms[roomCode]) return;
-  io.to(roomCode).emit("noticeUpdated", {
-    notice: rooms[roomCode].notice,
-    hostId: rooms[roomCode].hostId
-  });
-}
-
-function leaveCurrentRoom(socket, isDisconnect = false) {
-  if (!socket.roomCode || !rooms[socket.roomCode]) return;
-
-  const oldRoomCode = socket.roomCode;
-  const oldRoom = rooms[oldRoomCode];
-  const oldNickname = socket.nickname;
-
-  socket.leave(oldRoomCode);
-
-  oldRoom.users = oldRoom.users.filter((user) => user.id !== socket.id);
-
-  if (oldRoom.users.length === 0) {
-    delete rooms[oldRoomCode];
-  } else {
-    if (oldRoom.hostId === socket.id) {
-      oldRoom.hostId = oldRoom.users[0].id;
-    }
-
-    io.to(oldRoomCode).emit("message", {
-      nickname: "시스템",
-      message: `${oldNickname} 퇴장`
-    });
-
-    broadcastRoomUsers(oldRoomCode);
-    broadcastNotice(oldRoomCode);
-  }
-const express = require("express");
-const app = express();
-const http = require("http").createServer(app);
-const io = require("socket.io")(http);
-
-app.use(express.static(__dirname + "/../client"));
-
-const rooms = {};
-
 /*
 rooms = {
   secretCode: {
@@ -138,6 +62,7 @@ function broadcastNotice(roomCode) {
 
 function leaveCurrentRoom(socket, isDisconnect = false) {
   if (!socket.roomCode) return;
+
   const roomCode = socket.roomCode;
   const room = rooms[roomCode];
   if (!room) return;
@@ -190,7 +115,6 @@ io.on("connection", (socket) => {
       return;
     }
 
-    // 같은 이름의 방이 이미 있으면, 그 방의 코드를 알아야 입장 가능
     const existingRoomCode = findRoomCodeByName(trimmedRoomName);
 
     if (existingRoomCode) {
@@ -199,8 +123,10 @@ io.on("connection", (socket) => {
         return;
       }
     } else {
-      // 같은 코드가 이미 다른 이름의 방에 쓰이고 있으면 생성 불가
-      if (rooms[trimmedRoomCode] && rooms[trimmedRoomCode].roomName !== trimmedRoomName) {
+      if (
+        rooms[trimmedRoomCode] &&
+        rooms[trimmedRoomCode].roomName !== trimmedRoomName
+      ) {
         socket.emit("joinError", "이미 사용 중인 코드입니다.");
         return;
       }
@@ -228,7 +154,6 @@ io.on("connection", (socket) => {
 
     socket.join(trimmedRoomCode);
 
-    // 새 입장자는 이전 채팅 로그 못 보게
     socket.emit("clearChat");
 
     room.users.push({
@@ -256,6 +181,7 @@ io.on("connection", (socket) => {
 
   socket.on("updateNotice", ({ notice }) => {
     if (!socket.roomCode) return;
+
     const room = rooms[socket.roomCode];
     if (!room) return;
     if (room.hostId !== socket.id) return;
@@ -266,6 +192,7 @@ io.on("connection", (socket) => {
 
   socket.on("chatMessage", ({ message }) => {
     if (!socket.roomCode || !message) return;
+
     const room = rooms[socket.roomCode];
     if (!room) return;
 
@@ -277,12 +204,14 @@ io.on("connection", (socket) => {
 
   socket.on("leaveRoom", () => {
     if (!socket.roomCode) return;
+
     leaveCurrentRoom(socket);
     socket.emit("leftRoom");
   });
 
   socket.on("disconnect", () => {
     if (!socket.roomCode) return;
+
     leaveCurrentRoom(socket, true);
   });
 });
