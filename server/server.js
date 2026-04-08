@@ -106,9 +106,9 @@ io.on("connection", (socket) => {
       return;
     }
 
-    const trimmedNickname = nickname.trim();
-    const trimmedRoomName = roomName.trim();
-    const trimmedRoomCode = roomCode.trim();
+    const trimmedNickname = String(nickname).trim();
+    const trimmedRoomName = String(roomName).trim();
+    const trimmedRoomCode = String(roomCode).trim();
 
     if (!trimmedNickname || !trimmedRoomName || !trimmedRoomCode) {
       socket.emit("joinError", "이름, 방이름, 코드를 모두 입력하세요.");
@@ -154,6 +154,7 @@ io.on("connection", (socket) => {
 
     socket.join(trimmedRoomCode);
 
+    // 새 입장자는 이전 대화 기록 못 보게
     socket.emit("clearChat");
 
     room.users.push({
@@ -186,19 +187,25 @@ io.on("connection", (socket) => {
     if (!room) return;
     if (room.hostId !== socket.id) return;
 
-    room.notice = notice || "";
+    room.notice = String(notice || "").slice(0, 1000);
     broadcastNotice(socket.roomCode);
   });
 
   socket.on("chatMessage", ({ message }) => {
-    if (!socket.roomCode || !message) return;
+    if (!socket.roomCode) return;
 
     const room = rooms[socket.roomCode];
     if (!room) return;
 
+    const safeMessage = String(message || "").trim();
+
+    // 메시지 저장 안 함, 바로 중계만
+    if (!safeMessage) return;
+    if (safeMessage.length > 300) return;
+
     io.to(socket.roomCode).emit("message", {
       nickname: socket.nickname,
-      message
+      message: safeMessage
     });
   });
 
@@ -211,7 +218,6 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     if (!socket.roomCode) return;
-
     leaveCurrentRoom(socket, true);
   });
 });

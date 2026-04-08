@@ -50,12 +50,22 @@ function formatNickname(name) {
   return `<span style="color:${color}; font-weight:600;">${escapeHtml(name)}</span>`;
 }
 
-function scrollChatToBottom() {
+function scrollChatToBottom(force = true) {
   const chat = document.getElementById("chat");
   if (!chat) return;
 
   requestAnimationFrame(() => {
-    chat.scrollTop = chat.scrollHeight;
+    if (force) {
+      chat.scrollTop = chat.scrollHeight;
+      return;
+    }
+
+    const distanceFromBottom =
+      chat.scrollHeight - chat.scrollTop - chat.clientHeight;
+
+    if (distanceFromBottom < 80) {
+      chat.scrollTop = chat.scrollHeight;
+    }
   });
 }
 
@@ -125,6 +135,21 @@ const sendNoticeUpdate = debounce(() => {
   });
 }, 300);
 
+function applySavedTheme() {
+  const saved = localStorage.getItem("themeMode");
+  if (saved === "light") {
+    document.body.classList.add("light-mode");
+  } else {
+    document.body.classList.remove("light-mode");
+  }
+}
+
+function toggleTheme() {
+  document.body.classList.toggle("light-mode");
+  const isLight = document.body.classList.contains("light-mode");
+  localStorage.setItem("themeMode", isLight ? "light" : "dark");
+}
+
 function joinRoom() {
   const nicknameInput = document.getElementById("nickname").value.trim();
   const roomNameInput = document.getElementById("roomNameInput").value.trim();
@@ -156,7 +181,7 @@ function joinRoom() {
     roomCode
   });
 
-  scrollChatToBottom();
+  scrollChatToBottom(true);
 }
 
 function leaveRoom() {
@@ -170,7 +195,7 @@ function sendMessage() {
 
   socket.emit("chatMessage", { message: msg });
   msgInput.value = "";
-  scrollChatToBottom();
+  scrollChatToBottom(true);
 }
 
 socket.on("connect", () => {
@@ -187,7 +212,7 @@ socket.on("joinError", (message) => {
 
 socket.on("clearChat", () => {
   document.getElementById("chat").innerHTML = "";
-  scrollChatToBottom();
+  scrollChatToBottom(true);
 });
 
 socket.on("message", (data) => {
@@ -208,7 +233,7 @@ socket.on("message", (data) => {
     `;
   }
 
-  scrollChatToBottom();
+  scrollChatToBottom(true);
 });
 
 socket.on("roomList", (rooms) => {
@@ -225,7 +250,7 @@ socket.on("roomUsers", (payload) => {
   currentHostId = payload.hostId;
   setNoticeEditable(currentHostId === mySocketId);
 
-  scrollChatToBottom();
+  scrollChatToBottom(true);
 });
 
 socket.on("noticeUpdated", ({ notice, hostId }) => {
@@ -267,6 +292,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const messageInput = document.getElementById("message");
   const noticeText = document.getElementById("noticeText");
 
+  applySavedTheme();
+
   if (messageInput) {
     messageInput.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
@@ -284,7 +311,7 @@ document.addEventListener("DOMContentLoaded", () => {
   }
 
   window.addEventListener("resize", () => {
-    scrollChatToBottom();
+    scrollChatToBottom(true);
   });
 
   socket.emit("getRoomList");
